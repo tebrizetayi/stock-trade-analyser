@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Stocks</title>
+	<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+	<style>
+		#symbol {
+			width: 6em;
+		}
+		.chart-container {
+			display: grid;
+			grid-template-columns: repeat(2, 1fr); /* Creates two columns */
+			gap: 20px; /* Spacing between charts */
+			margin: 20px;
+		}
+		.chart {
+			width: 100%; /* Chart width will fill the grid column */
+			height: 400px;
+		}
+	</style>
+</head>
+<body>
+<h3>Stocks</h3>
+Symbol: <input id="symbol" value="AAPL"> <button id="generate">Generate</button>
+Trade Enter Date: <input id="tradeEnterDate" type="date" value="2023-05-10">
+Buy Price: <input id="buyPrice" value="123">
+Trade Exit Date: <input id="tradeExitDate" type="date" value="2023-05-20">
+Exit Price: <input id="exitPrice" value="112">
+Trade Exit 2 Date: <input id="tradeExitDate2" type="date" value="2023-05-30">
+Exit 2 Price: <input id="exitPrice2" value="110">
+<hr />
+<div class="chart-container">
+	<div id="chartDaily" class="chart"></div>
+	<div id="chartWeekly" class="chart"></div>
+	<div id="chartMonthly" class="chart"></div>
+	<div id="chartSP500" class="chart"></div>
+</div>
+
+<script src="/chart.js"></script>
+</body>
+</html>
