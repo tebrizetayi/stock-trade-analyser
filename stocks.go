@@ -485,8 +485,250 @@ func tableJSON(symbol string, table Table, w io.Writer, trade Trade) error {
 func main() {
 	http.Handle("/", http.FileServer(http.FS(staticFS)))
 	http.HandleFunc("/data", dataHandler)
+	http.HandleFunc("/upload", uploadFileHandler)
+	http.HandleFunc("/trades", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "trades.html")
+	})
+
+	http.HandleFunc("/trade", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "trade.html")
+	})
+
+	http.HandleFunc("/visualiseTrader", tradeVisualisationHandler)
 
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func tradeVisualisationHandler(w http.ResponseWriter, r *http.Request) {
+	symbol := r.URL.Query().Get("symbol")
+	if symbol == "" {
+		http.Error(w, "empty symbol", http.StatusBadRequest)
+		return
+	}
+
+	showTrades := false
+	showTradesQuery := r.URL.Query().Get("showTrades")
+	if showTradesQuery != "" {
+		showTrades, _ = strconv.ParseBool(showTradesQuery)
+
+	}
+
+	tradeEnterDateQuery := r.URL.Query().Get("tradeEnterDate")
+	if tradeEnterDateQuery == "" {
+		log.Printf("data: %q", r.URL.Query().Get("tradeEnterDate"))
+		http.Error(w, "empty tradeEnterDate", http.StatusBadRequest)
+		return
+	}
+
+	tradeEnterDate, err := time.Parse("2006-01-02", tradeEnterDateQuery)
+	if err != nil {
+		log.Printf("data: %q", tradeEnterDateQuery)
+		http.Error(w, "invalid tradeEnterDate", http.StatusBadRequest)
+		return
+	}
+
+	tradeExitDateQuery := r.URL.Query().Get("tradeExitDate")
+	if tradeExitDateQuery == "" {
+		log.Printf("data: %q", r.URL.Query().Get("tradeExitDate"))
+		http.Error(w, "empty tradeExitDate", http.StatusBadRequest)
+		return
+	}
+
+	tradeExitDate, err := time.Parse("2006-01-02", tradeExitDateQuery)
+	if err != nil {
+		log.Printf("data: %q", tradeExitDateQuery)
+		http.Error(w, "invalid tradeExitDate", http.StatusBadRequest)
+		return
+	}
+
+	tradeEnterQuery := r.URL.Query().Get("buyPrice")
+	if tradeEnterQuery == "" {
+		log.Printf("data: %q", r.URL.Query().Get("tradeEnterPrice"))
+		http.Error(w, "empty tradeEnterPrice", http.StatusBadRequest)
+		return
+	}
+
+	tradeEnterPrice, err := strconv.ParseFloat(tradeEnterQuery, 64)
+	if err != nil {
+		log.Printf("data: %q", tradeEnterQuery)
+		http.Error(w, "invalid tradeEnterDate", http.StatusBadRequest)
+		return
+	}
+
+	trade := Trade{
+		EnterDate:  tradeEnterDate,
+		EnterPrice: tradeEnterPrice,
+		Exits:      []Exit{},
+		Symbol:     symbol,
+		ShowTrades: showTrades,
+	}
+
+	exitPriceQuery := r.URL.Query().Get("exitPrice")
+	if exitPriceQuery == "" {
+		log.Printf("data: %q", r.URL.Query().Get("tradeExitPrice"))
+		http.Error(w, "empty tradeExitPrice", http.StatusBadRequest)
+		return
+	}
+	tradeExitPrice, err := strconv.ParseFloat(exitPriceQuery, 64)
+	if err != nil {
+		log.Printf("data: %q", exitPriceQuery)
+		http.Error(w, "invalid tradeExitPrice", http.StatusBadRequest)
+		return
+	}
+	trade.Exits = append(trade.Exits, Exit{
+		ExitDate:  tradeExitDate,
+		ExitPrice: tradeExitPrice,
+	})
+
+	tradeExitDateQuery2 := r.URL.Query().Get("tradeExitDate2")
+	if tradeExitDateQuery2 != "" {
+		tradeExitDate2, err := time.Parse("2006-01-02", tradeExitDateQuery2)
+		if err != nil {
+			http.Error(w, "invalid tradeExitDate2", http.StatusBadRequest)
+			return
+		}
+		exitPriceQuery2 := r.URL.Query().Get("exitPrice2")
+		if exitPriceQuery2 != "" {
+			tradeExitPrice2, err := strconv.ParseFloat(exitPriceQuery2, 64)
+			if err != nil {
+				log.Printf("data: %q", exitPriceQuery2)
+				http.Error(w, "invalid exitPrice2", http.StatusBadRequest)
+				return
+			}
+			trade.Exits = append(trade.Exits, Exit{
+				ExitDate:  tradeExitDate2,
+				ExitPrice: tradeExitPrice2,
+			})
+		}
+
+	}
+
+	timeFrameMap := map[string]int{
+		"daily":   Daily,
+		"weekly":  Weekly,
+		"monthly": Monthly,
+		"":        Daily,
+	}
+
+	timeFrameQuery := r.URL.Query().Get("timeFrame")
+
+	log.Printf("data: %q %q %q %f %f", symbol, tradeEnterDate, tradeExitDate, tradeEnterPrice, tradeExitPrice)
+
+	table, err := stockData(symbol, trade, timeFrameMap[timeFrameQuery])
+	if err != nil {
+		log.Printf("get %q: %s", symbol, err)
+		http.Error(w, "can't fetch data", http.StatusInternalServerError)
+		return
+	}
+
+	if err := tableJSON(symbol, table, w, trade); err != nil {
+		log.Printf("table: %s", err)
+	}
+
+}
+
+type TradeOrder struct {
+	TradeID          string
+	ExitID           string
+	EntryDateTime    string // Keep as string for simplicity in HTTP handling
+	ExitDateTime     string
+	StockSymbol      string
+	EntryType        string
+	ExitType         string
+	EntryQuantity    int
+	ExitQuantity     int
+	EntryPrice       float64
+	ExitPrice        float64
+	Commission       float64
+	TotalCostForExit float64
+	TraderID         string
+	Market           string
+	OrderStatus      string
+	TradeDetailsLink string
+}
+
+func uploadFileHandler(w http.ResponseWriter, r *http.Request) {
+	// Only accept POST requests
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Parse the multipart form
+	r.ParseMultipartForm(10 << 20) // Limit file size to 10 MB
+
+	// Retrieve the file from the form data
+	file, _, err := r.FormFile("file")
+	if err != nil {
+		http.Error(w, "Error retrieving the file", http.StatusInternalServerError)
+		return
+	}
+	defer file.Close()
+
+	// Read the CSV file
+	csvReader := csv.NewReader(file)
+	records, err := csvReader.ReadAll()
+	if err != nil {
+		http.Error(w, "Error reading the CSV file", http.StatusInternalServerError)
+		return
+	}
+
+	tradeOrders := make([]TradeOrder, 0, len(records))
+	// Process each record
+	for _, record := range records {
+		tradeOrder, err := parseCSVRecord(record)
+		if err != nil {
+			fmt.Println("Error parsing record:", err)
+			continue
+		}
+
+		tradeOrders = append(tradeOrders, tradeOrder)
+		// Process tradeOrder (e.g., store in database, perform calculations)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	// Encode the tradeOrders slice to JSON and send it as a response
+	json.NewEncoder(w).Encode(tradeOrders)
+}
+
+func parseCSVRecord(record []string) (TradeOrder, error) {
+	entryQuantity, _ := strconv.Atoi(record[7])
+	exitQuantity, _ := strconv.Atoi(record[8])
+	entryPrice, _ := strconv.ParseFloat(record[9], 64)
+	exitPrice, _ := strconv.ParseFloat(record[10], 64)
+	commission, _ := strconv.ParseFloat(record[11], 64)
+	totalCostForExit, _ := strconv.ParseFloat(record[12], 64)
+
+	// Constructing the link for trade details
+	tradeDetailsLink := fmt.Sprintf(
+		"http://localhost:8080/trade?symbol=%s&tradeEnterDate=%s&buyPrice=%f&tradeExitDate=%s&exitPrice=%f&tradeExitDate2=%s&exitPrice2=%f",
+		record[4], // StockSymbol
+		record[2], // EntryDateTime
+		entryPrice,
+		record[3], // ExitDateTime
+		exitPrice,
+		"",  // Placeholder for tradeExitDate2
+		0.0, // Placeholder for exitPrice2
+	)
+	return TradeOrder{
+		TradeID:          record[0],
+		ExitID:           record[1],
+		EntryDateTime:    record[2],
+		ExitDateTime:     record[3],
+		StockSymbol:      record[4],
+		EntryType:        record[5],
+		ExitType:         record[6],
+		EntryQuantity:    entryQuantity,
+		ExitQuantity:     exitQuantity,
+		EntryPrice:       entryPrice,
+		ExitPrice:        exitPrice,
+		Commission:       commission,
+		TotalCostForExit: totalCostForExit,
+		TraderID:         record[13],
+		Market:           record[14],
+		OrderStatus:      record[15],
+		TradeDetailsLink: tradeDetailsLink,
+	}, nil
 }

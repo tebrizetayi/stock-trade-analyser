@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Stock Trade Orders Upload</title>
+</head>
+<body>
+<h2>Upload Stock Trade Orders CSV</h2>
+
+<form id="uploadForm" enctype="multipart/form-data">
+    <input type="file" name="file" accept=".csv" required />
+    <input type="button" value="Upload" onclick="uploadFile()" />
+</form>
+
+<div id="responseTable"></div>
+
+<script>
+    function uploadFile() {
+        var form = document.getElementById('uploadForm');
+        var formData = new FormData(form);
+
+        fetch('http://localhost:8080/upload', {
+            method: 'POST',
+            body: formData,
+        })
+            .then(response => response.json()) // Assuming the response is JSON
+            .then(data => {
+                displayTable(data);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while uploading the file.');
+            });
+    }
+
+    function displayTable(data) {
+        var table = '<table border="1"><tr>';
+        // Add headers
+        for (var header in data[0]) {
+            table += '<th>' + header + '</th>';
+        }
+        table += '</tr>';
+
+        // Add rows
+        for (var i = 0; i < data.length; i++) {
+            table += '<tr>';
+            for (var key in data[i]) {
+                var value = data[i][key]; // Correctly reference the value
+                if (typeof value === 'string' && value.startsWith('http://')) {
+                    // If the value is a link, create a clickable link
+                    table += '<td><a href="' + value + '" target="_blank">View Details</a></td>';
+                } else {
+                    // Otherwise, just display the value
+                    table += '<td>' + value + '</td>';
+                }
+            }
+            table += '</tr>';
+        }
+        table += '</table>';
+
+        document.getElementById('responseTable').innerHTML = table;
+    }
+
+</script>
+</body>
+</html>

@@ -1,0 +1,53 @@
+import random
+from datetime import datetime, timedelta
+
+def random_date(start_date):
+    """Generate a random date starting from the given date."""
+    random_number_of_days = random.randrange(15, 45)  # Random number of days between 15 and 45
+    return start_date + timedelta(days=random_number_of_days)
+
+def generate_trade_record(trade_id):
+    """Generate a single trade record."""
+    entry_date = datetime(2023, random.randint(1, 12), random.randint(1, 28))
+    exit_date = random_date(entry_date)
+    symbol = random.choice(['AAPL', 'MSFT', 'TSLA', 'AMZN', 'GOOGL', 'NFLX'])
+    entry_type = random.choice(['Buy', 'Short'])
+    exit_type = 'Sell' if entry_type == 'Buy' else 'Cover'
+    quantity = random.randint(50, 200)
+    entry_price = round(random.uniform(100, 500), 2)
+    exit_price = round(random.uniform(100, 500), 2)
+    commission = round(random.uniform(5, 20), 2)
+    total_cost = round(quantity * exit_price + commission, 2)
+    trader_id = f'Trader{random.randint(100, 999)}'
+    market = random.choice(['NYSE', 'NASDAQ'])
+    status = random.choice(['Executed', 'Pending', 'Cancelled'])
+
+    return [
+        trade_id,
+        trade_id + 1000,
+        entry_date.strftime('%Y-%m-%d'),
+        exit_date.strftime('%Y-%m-%d'),
+        symbol,
+        entry_type,
+        exit_type,
+        quantity,
+        quantity,
+        entry_price,
+        exit_price,
+        commission,
+        total_cost,
+        trader_id,
+        market,
+        status
+    ]
+
+def main():
+    num_records = 10  # Change this number to generate more records
+    header = ['Trade ID', 'Exit ID', 'Entry Date', 'Exit Date', 'Stock Symbol', 'Entry Type', 'Exit Type', 'Entry Quantity', 'Exit Quantity', 'Entry Price', 'Exit Price', 'Commission', 'Total Cost for Exit', 'Trader ID', 'Market', 'Order Status']
+
+    print(','.join(header))
+    for i in range(1001, 1001 + num_records):
+        print(','.join(map(str, generate_trade_record(i))))
+
+if __name__ == "__main__":
+    main()

@@ -1,32 +1,46 @@
-async function updateChart() {
-    let symbol = document.getElementById('symbol').value;
-    let tradeEnterDate = document.getElementById('tradeEnterDate').value;
-    let buyPrice = document.getElementById('buyPrice').value;
-    let exitPrice = document.getElementById('exitPrice').value;
-    let tradeExitDate = document.getElementById('tradeExitDate').value;
-    let exitPrice2 = document.getElementById('exitPrice2').value;
-    let tradeExitDate2 = document.getElementById('tradeExitDate2').value;
-
-    // Fetch data for daily chart
-    let respDaily = await fetch('/data?symbol=' + symbol + '&tradeEnterDate=' + tradeEnterDate + '&tradeExitDate=' + tradeExitDate + '&buyPrice=' + buyPrice + '&exitPrice=' + exitPrice + '&tradeExitDate2=' + tradeExitDate2 + '&exitPrice2=' + exitPrice2 + '&showTrades=true');
-    let dataDaily = await respDaily.json();
-    renderChart('chartDaily', dataDaily);
-
-    // Fetch data for weekly chart
-    let respWeekly = await fetch('/data?symbol=' + symbol + '&tradeEnterDate=' + tradeEnterDate + '&tradeExitDate=' + tradeExitDate + '&buyPrice=' + buyPrice + '&exitPrice=' + exitPrice + '&tradeExitDate2=' + tradeExitDate2 + '&exitPrice2=' + exitPrice2 + '&timeFrame=weekly' + '&showTrades=true');
-    let dataWeekly = await respWeekly.json();
-    renderChart('chartWeekly', dataWeekly);
-
-    // Fetch data for monthly chart
-    let respMonthly = await fetch('/data?symbol=' + symbol + '&tradeEnterDate=' + tradeEnterDate + '&tradeExitDate=' + tradeExitDate + '&buyPrice=' + buyPrice + '&exitPrice=' + exitPrice + '&tradeExitDate2=' + tradeExitDate2 + '&exitPrice2=' + exitPrice2 + '&timeFrame=monthly' + '&showTrades=true');
-    let dataMonthly = await respMonthly.json();
-    renderChart('chartMonthly', dataMonthly);
-
-    // Fetch data for SP500 chart
-    let respSP500 = await fetch('/data?symbol=spy' + '&tradeEnterDate=' + tradeEnterDate + '&tradeExitDate=' + tradeExitDate + '&buyPrice=' + buyPrice + '&exitPrice=' + exitPrice + '&tradeExitDate2=' + tradeExitDate2 + '&exitPrice2=' + exitPrice2 + '&timeFrame=daily' + '&showTrades=true');
-    let dataSP500 = await respSP500.json();
-    renderChart('chartSP500', dataSP500);
+function getQueryStringParam(param) {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get(param);
 }
+
+
+async function updateChart() {
+    let queryParams = [
+        'symbol', 'tradeEnterDate', 'buyPrice', 'exitPrice',
+        'tradeExitDate', 'exitPrice2', 'tradeExitDate2'
+    ].reduce((acc, param) => {
+        let value = getQueryStringParam(param);
+        if (value) acc.push(param + '=' + encodeURIComponent(value));
+        return acc;
+    }, []).join('&');
+
+    // Append common parameters
+    let commonParams = queryParams + '&showTrades=true';
+
+    // Fetch and render charts with proper error handling
+    try {
+        let dataDaily = await fetchAndParseData('/data?' + commonParams + '&timeFrame=daily');
+        renderChart('chartDaily', dataDaily);
+
+        let dataWeekly = await fetchAndParseData('/data?' + commonParams + '&timeFrame=weekly');
+        renderChart('chartWeekly', dataWeekly);
+
+        let dataMonthly = await fetchAndParseData('/data?' + commonParams + '&timeFrame=monthly');
+        renderChart('chartMonthly', dataMonthly);
+
+        let dataSP500 = await fetchAndParseData('/data?symbol=spy&' + commonParams);
+        renderChart('chartSP500', dataSP500);
+    } catch (error) {
+        console.error('Error fetching chart data:', error);
+    }
+}
+
+async function fetchAndParseData(url) {
+    let response = await fetch(url);
+    if (!response.ok) throw new Error('Network response was not ok');
+    return response.json();
+}
+
 
 function renderChart(elementId, data) {
     var chartContainer = document.querySelector("#" + elementId);
@@ -118,6 +132,7 @@ function renderChart(elementId, data) {
     chart.render();
 }
 
+
 document.addEventListener('DOMContentLoaded', function () {
-    document.getElementById('generate').onclick = updateChart;
+    updateChart();
 });

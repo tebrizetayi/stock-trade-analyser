@@ -9,18 +9,25 @@
 		}
 		.chart-container {
 			display: grid;
-			grid-template-columns: repeat(2, 1fr); /* Creates two columns */
-			gap: 20px; /* Spacing between charts */
+			gap: 20px;
 			margin: 20px;
 		}
 		.chart {
-			width: 100%; /* Chart width will fill the grid column */
+			width: 100%;
 			height: 400px;
 		}
 	</style>
 </head>
 <body>
 <h3>Stocks</h3>
+
+Column:
+<select id="numColumns">
+	<option value="1">1</option>
+	<option value="2" selected>2</option>
+	<option value="4">4</option>
+</select>
+
 Symbol: <input id="symbol" value="AAPL"> <button id="generate">Generate</button>
 Trade Enter Date: <input id="tradeEnterDate" type="date" value="2023-05-10">
 Buy Price: <input id="buyPrice" value="123">
